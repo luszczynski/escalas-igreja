@@ -1,6 +1,8 @@
+// https://developers.google.com/apps-script/reference/forms/form?hl=pt-br
+
 const now = new Date();
 const year = now.getFullYear();
-const month = 7;
+const month = 1; // Deve começar com 1 (janeiro), 2 fevereiro,etc
 
 const DAY_NAMES = {
   DOMINGO: 0,
@@ -12,10 +14,15 @@ const DAY_NAMES = {
   SÁBADO: 6,
 };
 
-var sections = [
+const MONTH_NAMES = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
+
+const sections = [
     {
         title: "Escala Núcleo Bandeirante",
-        description: "Escala de Núcleo Bandeirante",
+        description: "Escala do Núcleo Bandeirante",
         goTo: "Núcleo Bandeirante",
         days: [
             {
@@ -135,8 +142,20 @@ var sections = [
     }
 ];
 
+const description = 'Querido voluntário, pedimos que você preencha este formulário indicando suas restrições de horário para a escala deste mês. Sua dedicação é muito apreciada, e agradecemos de coração pela sua disposição em servir. Que Deus continue abençoando grandemente sua vida e sua família. \n\n"Portanto, meus amados irmãos, sejam firmes e constantes, sempre abundantes na obra do Senhor, sabendo que, no Senhor, o vosso trabalho não é vão.” (1 Coríntios 15:58)"';
+
+const confirmationMessage = "Muito obrigado por preencher a escala deste mês. Que Deus continue abençoando grandemente sua vida e sua família!";
+
+const formTitle = `Jornada do Novo - Escala de ${MONTH_NAMES[month - 1]}`;
+
 function addWeekendDaysToForm() {
     var form = FormApp.getActiveForm();
+
+    form.getItems().forEach(item => form.deleteItem(item));
+
+    form.setTitle(formTitle);
+    form.setDescription(description);
+    form.setConfirmationMessage(confirmationMessage)
   
     // Verifica e atualiza o campo de nome e sobrenome
     var nameField = form.getItems(FormApp.ItemType.TEXT).find(function(item) {
@@ -144,7 +163,7 @@ function addWeekendDaysToForm() {
     });
   
     if (!nameField) {
-      nameField = form.addTextItem().setTitle('Nome e Sobrenome').setRequired(true);
+      nameField = form.addTextItem().setTitle('Nome e Sobrenome').setRequired(true).setHelpText('É importante preencher o nome e sobrenome corretamente para que possamos identificar você.');
     } else {
       nameField = nameField.asTextItem();
     }
@@ -159,11 +178,11 @@ function addWeekendDaysToForm() {
   
     // Verifica e atualiza a questão da lista suspensa de igrejas
     var dropdown = form.getItems(FormApp.ItemType.LIST).find(function(item) {
-      return item.getTitle() === 'Escolha igreja';
+      return item.getTitle() === 'Escolha a igreja';
     });
   
     if (!dropdown) {
-      dropdown = form.addListItem().setTitle('Escolha igreja').setRequired(true);
+      dropdown = form.addListItem().setTitle('Escolha a igreja').setRequired(true).setHelpText("Selecione a igreja para a qual você deseja enviar sua disponibilidade de escala.");
     } else {
       dropdown = dropdown.asListItem();
     }
@@ -179,7 +198,7 @@ function addWeekendDaysToForm() {
         // Se não existir, cria um novo PageBreak com título e descrição
         sectionPage = form.addPageBreakItem()
           .setTitle(section.title)
-          .setDescription(section.description) // Adiciona descrição
+          .setHelpText(section.description)
           .setGoToPage(FormApp.PageNavigationType.SUBMIT);
       } else {
         // Se existir, apenas referencia o PageBreak existente
@@ -262,7 +281,7 @@ function addWeekendDaysToForm() {
     } catch (e) {
         if (e.message === 'The form currently has no response destination.') {
             // Se não houver uma planilha associada, cria uma nova
-            var newSpreadsheet = SpreadsheetApp.create('Respostas ao formulário');
+            var newSpreadsheet = SpreadsheetApp.create(formTitle);
             destinationId = newSpreadsheet.getId();
             
             // Associa a nova planilha ao formulário
@@ -350,16 +369,23 @@ function addWeekendDaysToForm() {
   
   // Ajusta a função calculateSlotsAvailable para utilizar a seção correta
   function calculateSlotsAvailable(section, eventKey, count) {
-    var [date, dayName, time] = eventKey.split(' - ');
+    const parts = eventKey.split(' - ');
+    if (parts.length < 3) {
+        console.log('O eventKey não está no formato esperado:', eventKey);
+        // Trate a situação em que o eventKey não está no formato esperado
+        return "0/0";
+    }
+
+    const [date, dayName, time] = parts;
+    const day = dayName.toUpperCase();
     var slotsAvailable = 0;
   
-    var day = dayName.toUpperCase();
     if (section.totalSlots[day] && section.totalSlots[day][time]) {
         slotsAvailable = section.totalSlots[day][time];
     }
   
     // Subtrai o número de vagas ocupadas
-    var remainingSlots = Math.max(slotsAvailable - count, 0);
+    const remainingSlots = Math.max(slotsAvailable - count, 0);
     return `${remainingSlots}/${slotsAvailable}`;
   }
   
